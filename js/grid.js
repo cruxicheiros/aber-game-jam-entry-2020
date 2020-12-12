@@ -1,32 +1,34 @@
-const EntityTypes = {
+var ge = {}; // grid engine namespace
+
+ge.EntityTypes = {
     PLAYER: 'player',
     WALL: 'wall',
     BOMB: 'bomb'
-}
+};
 
-const Directions = {
+ge.Directions = {
     UP: 'up',
     DOWN: 'down',
     LEFT: 'left',
     RIGHT: 'right'
-}
+};
 
-class Entity {
-    constructor(type, direction=Directions.DOWN) {
+ge.Entity = class {
+    constructor(type, direction=ge.Directions.DOWN) {
         this.type = type;
         this.direction = direction;
     }
-}
+};
 
-class Wall extends Entity {
-    constructor(direction=Directions.DOWN) {
-        super(EntityTypes.WALL, direction);
+ge.Wall = class extends ge.Entity {
+    constructor(direction=ge.Directions.DOWN) {
+        super(ge.EntityTypes.WALL, direction);
     }
-}
+};
 
-class Player extends Entity {
-    constructor(id, position, direction=Directions.DOWN) {
-        super(EntityTypes.PLAYER, direction);
+ge.Player = class extends ge.Entity {
+    constructor(id, position, direction=ge.Directions.DOWN) {
+        super(ge.EntityTypes.PLAYER, direction);
 
         this.id = id;
         this.position = position;
@@ -36,38 +38,38 @@ class Player extends Entity {
     die() {
         this.dead = true;
     }
-}
+};
 
-class Bomb extends Entity {
-    constructor(direction=Directions.DOWN) {
-        super(EntityTypes.BOMB);
+ge.Bomb = class extends ge.Entity {
+    constructor(direction=ge.Directions.DOWN) {
+        super(ge.EntityTypes.BOMB);
     }
-}
+};
 
-class Point {
+ge.Point = class {
     constructor(x, y) {
         this.x = x;
         this.y = y;
     }
 
     above() {
-        return new Point(this.x, this.y - 1);
+        return new ge.Point(this.x, this.y - 1);
     }
 
     below() {
-        return new Point(this.x, this.y + 1);
+        return new ge.Point(this.x, this.y + 1);
     }
 
     left() {
-        return new Point(this.x - 1, this.y);
+        return new ge.Point(this.x - 1, this.y);
     }
 
     right() {
-        return new Point(this.x + 1, this.y);
+        return new ge.Point(this.x + 1, this.y);
     }
-}
+};
 
-class Tile {
+ge.Tile = class {
     constructor(occupant=null) {
         this.occupant = occupant;
     }
@@ -85,9 +87,9 @@ class Tile {
     clear() {
         this.occupant = null;
     }
-}
+};
 
-class Grid {
+ge.Grid = class {
     constructor(size) {
         this.size = size;
         this.contents = this._constructContents();
@@ -153,16 +155,16 @@ class Grid {
         let possible = true;
 
         switch (direction) {
-            case Directions.UP:
+            case ge.Directions.UP:
                 possible = this.getTileAbovePos(startPoint).isEmpty();
                 break;
-            case Directions.DOWN:
+            case ge.Directions.DOWN:
                 possible = this.getTileBelowPos(startPoint).isEmpty();
                 break;
-            case Directions.LEFT:
+            case ge.Directions.LEFT:
                 possible = this.getTileLeftOfPos(startPoint).isEmpty();
                 break;
-            case Directions.RIGHT:
+            case ge.Directions.RIGHT:
                 possible = this.getTileRightOfPos(startPoint).isEmpty();
                 break;
             default:
@@ -184,14 +186,14 @@ class Grid {
             let row = [];
 
             // Left wall
-            row.push(new Tile(new Wall()));
+            row.push(new ge.Tile(new ge.Wall()));
 
             for (let j = 0; j < sizeWithoutWalls; j++) {
-                row.push(new Tile());
+                row.push(new ge.Tile());
             }
 
             // Right wall
-            row.push(new Tile(new Wall()));
+            row.push(new ge.Tile(new ge.Wall()));
 
             innerGrid.push(row);
         }
@@ -206,21 +208,21 @@ class Grid {
         let horizontalWall = [];
 
         for (let i = 0; i < this.size; i++) {
-            horizontalWall.push(new Tile(new Wall()));
+            horizontalWall.push(new ge.Tile(new ge.Wall()));
         }
 
         return horizontalWall;
     }
-}
+};
 
-class GameGridState {
+ge.GameGridState = class {
     constructor(grid, players) {
         this.players = players;
         this._playersById = {};
         this.grid = grid;
 
         for (let i = 0; i < this.players.length; i++) {
-            let player = this.players[i]
+            let player = this.players[i];
 
             this.grid.getTileAtPos(player.position).fill(player);
             this._playersById[player.id] = player;
@@ -241,7 +243,7 @@ class GameGridState {
         let player = this.getPlayerById(playerId);
         
         if (player == null) {
-            throw "Can't move player with id " + playerId + " because that player doesn't exist."
+            throw "Can't move player with id " + playerId + " because that player doesn't exist.";
         }
 
         return this.grid.isMotionPossible(player.position, direction);
@@ -280,6 +282,6 @@ class GameGridState {
             
         let playerTile = this.grid.getTileAtPos(player.position);  // Get the tile where the player is located.
         playerTile.clear();  // Remove the player object from the grid.
-        playerTile.fill(new Wall(player.direction)); // Fill the player's old location with a wall facing in the player's direction.
+        playerTile.fill(new ge.Wall(player.direction)); // Fill the player's old location with a wall facing in the player's direction.
     }
-}
+};
