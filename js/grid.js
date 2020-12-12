@@ -41,8 +41,14 @@ ge.Player = class extends ge.Entity {
 };
 
 ge.Bomb = class extends ge.Entity {
-    constructor(direction=ge.Directions.DOWN) {
+    constructor(position, timer, callback, direction) {
         super(ge.EntityTypes.BOMB);
+        
+	this.direction = direction;
+      	this.position = position;
+        this.timer = timer;
+        this._callback = callback;
+        this._timeoutId = setTimeout(() => { this._callback(this.position, this.direction); }, timer);
     }
 };
 
@@ -79,9 +85,12 @@ ge.Tile = class {
     }
 
     fill(newOccupant) {
-        if (this.isEmpty) {
+        if (this.isEmpty()) {
             this.occupant = newOccupant;
+            return;
         }
+      
+        throw "Could not fill tile: The tile was already occupied by " + this.occupant;
     }
 
     clear() {
@@ -93,6 +102,40 @@ ge.Grid = class {
     constructor(size) {
         this.size = size;
         this.contents = this._constructContents();
+    }
+  
+    asText() {
+        let str = "";
+      	
+      	for (let i = 0; i < this.size; i++) {
+          	str = str + i.toString().padStart(2, '0');
+          
+            for (let j = 0; j < this.size; j++) {
+                let entity = this.contents[i][j].occupant;
+              	
+              	if (entity == null) {
+                    str = str + '.';
+                } else {
+                    switch (entity.type) {
+                        case ge.EntityTypes.BOMB:
+                            str = str + "B";
+                            break;
+                        case ge.EntityTypes.PLAYER:
+                            str = str + "P";
+                            break;
+                        case ge.EntityTypes.WALL:
+                            str = str + "W";
+                        		break;
+                        default:
+                            str = str + "X";
+                    }
+                }
+            }
+          
+            str = str + "\n";
+        }
+      
+        return str;
     }
 
     getTileAtPos(point) {
@@ -284,4 +327,104 @@ ge.GameGridState = class {
         playerTile.clear();  // Remove the player object from the grid.
         playerTile.fill(new ge.Wall(player.direction)); // Fill the player's old location with a wall facing in the player's direction.
     }
+
+    playerDropBomb(playerId, bombTimer=500) {
+        let player = this.getPlayerById(playerId);
+        
+        if (player == null) {
+            throw "Player with id " + playerId + " can't drop a bomb because that player doesn't exist.";
+        }
+        
+        // Can we place a new bomb?
+        // This works because a player can only drop a bomb into the space directly in front of them, i.e. the space that they would
+        // move into if they moved one grid square in the direction that they were facing.
+        if (this.grid.isMotionPossible(player.position, player.direction)) {
+            let bombPosition;
+
+            // Find the new position of the bomb.
+            switch (player.direction) {
+                case ge.Directions.UP:
+                    bombPosition = player.position.above();
+                    break;
+                case ge.Directions.DOWN:
+                    bombPosition = player.position.below();
+                    break;
+                case ge.Directions.LEFT:
+                    bombPosition = player.position.left();
+                    break;
+                case ge.Directions.RIGHT:
+                    bombPosition = player.position.right();
+                    break;
+                default:
+                    throw player.direction + " is not a valid direction. Please check the player's direction."
+            }
+
+            console.log(this.grid.asText());
+          
+            // Place the bomb. The bomb's direction controls which direction it explodes in.
+            // explosionCallback is called when the timer runs out.
+            this.grid.getTileAtPos(bombPosition).fill(new ge.Bomb(bombPosition, bombTimer, this.explodeBomb.bind(this), player.direction));
+          
+            console.log(this.grid.asText());
+        }
+    }
+  
+    _reverseDirection(direction) {
+        switch (direction) {
+            case ge.Directions.UP:
+              return ge.Directions.DOWN;
+              break;
+            case ge.Directions.DOWN:
+              return ge.Directions.UP;
+              break;
+            case ge.Directions.LEFT:
+              return ge.Directions.RIGHT;
+              break;
+            case ge.Directions.RIGHT:
+              return ge.Directions.LEFT;
+              break;
+            default:
+              throw "Direction couldn't be reversed: " + direction + " is not a valid direction."
+        }
+    }
+
+    explodeBomb(position, direction) {  // Callback that a bomb calls to make itself go boom
+        console.log(this.grid.asText());
+      
+        let bombTile = this.grid.getTileAtPos(position);
+        bombTile.clear();  // Remove the bomb...
+      	
+        // Create garbage in every direction except where the player who placed it is
+        let directions = [ge.Directions.UP, ge.Directions.DOWN, ge.Directions.LEFT, ge.Directions.RIGHT];
+      	let explosionDirections = directions.filter(d => d != this._reverseDirection(direction));
+      	
+      	for (let i = 0; i < explosionDirections.length; i++) {
+						let garbagePosition;
+            let garbageDirection = explosionDirections[i];
+          
+            switch (garbageDirection) {
+                case ge.Directions.UP:
+                    garbagePosition = position.above();
+                    break;
+                case ge.Directions.DOWN:
+                    garbagePosition = position.below();
+                    break;
+                case ge.Directions.LEFT:
+                    garbagePosition = position.left();
+                    break;
+                case ge.Directions.RIGHT:
+                    garbagePosition = position.right();
+                    break;
+             }
+
+            try {
+                let garbageTile = this.grid.getTileAtPos(garbagePosition);
+                garbageTile.fill(new ge.Wall(garbageDirection));
+            } catch (e) {
+                console.log("Encountered error while creating explosion garbage but ignored it: " + e);
+            }
+          
+            console.log(this.grid.asText());
+        }
+   }
 };
