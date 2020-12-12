@@ -417,11 +417,22 @@ ge.GameGridState = class {
                     break;
              }
 
+            let garbageTile = this.grid.getTileAtPos(garbagePosition);
+
             try {
-                let garbageTile = this.grid.getTileAtPos(garbagePosition);
                 garbageTile.fill(new ge.Wall(garbageDirection));
             } catch (e) {
                 console.log("Encountered error while creating explosion garbage but ignored it: " + e);
+
+                if (garbageTile.occupant.type == ge.EntityTypes.PLAYER) {
+                    let hitPlayer = garbageTile.occupant;
+
+                    console.log("Explosion hit a player: " + hitPlayer.id);
+
+                    hitPlayer.die();
+                    garbageTile.clear();
+                    garbageTile.fill(new ge.Wall(hitPlayer.direction));
+                }
             }
           
             console.log(this.grid.asText());
