@@ -13,6 +13,89 @@ ge.Directions = {
     RIGHT: 'right'
 };
 
+ge.Queue = class {
+    constructor(capacity, dynamic=true) {
+        this.capacity = capacity;
+        this.dynamic = dynamic;
+        this._innerArray = new Array(this.capacity).fill(null);
+        this._head = 0;
+        this._size = 0;
+    }
+
+    enqueue(item) {
+        if (this.isFull()) {
+            if (this.dynamic) {
+                let orderedCopy = [];
+                let newCapacity = this.capacity * 2;
+                
+                // Copy the original array out in order so that the head can be set to 0
+                for (int i = this._head; i < this._head + this._size; i++) {
+                    orderedCopy.push(this._innerArray(this._getIndex(i)));
+                }
+
+                // Add nulls to increase array size to the new capacity for indexing purposes
+                for (int i = this.capacity; i < newCapacity; i++) {
+                    orderedCopy.push(null);
+                }
+
+                // Increase the capacity (the size can stay the same because nothing has been added)
+                this.capacity = newCapacity;
+                
+                // Reset the head to 0
+                this._head = 0;
+
+                // Set the inner array to the new, larger array
+                this._innerArray = orderedCopy;
+            } else {
+                throw "Static circular array within Queue ran out of space!";
+            }
+        }
+
+        // Enqueue at the tail.
+        this._innerArray[this.getTail()] = item;
+        this.size += 1;
+    }
+
+    dequeue() {
+        if (this.isEmpty()) {
+            throw "Can't dequeue from an empty queue!";
+        }
+
+        // Dequeue from the head.
+        let item = this._innerArray[this._head];
+        this._innerArray[this._head] = null;
+        
+        return item;
+    }
+
+    isEmpty() {
+        return this._size === 0;
+    }
+
+    isFull() {
+        return this._size === this.capacity;
+    }
+
+    getHead() {
+        return this._head;
+    }
+
+    getTail() {
+        return this._getIndex(this._head + this._size);
+    }
+
+    getSize() {
+        return this._size;
+    }
+
+    _getIndex(circularIndex) {
+        // This trick is required to deal with weird stuff JS's modulo operator does
+        // that will result in it sometimes giving a negative answer.
+        // Thanks to https://stackoverflow.com/a/54427125.
+        return (circularIndex % this.capacity + this.capacity) % this.capacity;
+    }
+}
+
 ge.Entity = class {
     constructor(type, direction=ge.Directions.DOWN) {
         this.type = type;
@@ -215,6 +298,10 @@ ge.Grid = class {
         }
 
         return possible;
+    }
+
+    checkTraversable(pointA, pointB) {
+        let traversable = false;
     }
 
     _constructContents() {
