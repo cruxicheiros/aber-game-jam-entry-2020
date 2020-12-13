@@ -717,6 +717,13 @@ ge.Game = class Game {
             "KeyL": {direction: ge.Directions.RIGHT, player: 3},
         }
 
+        this._playerBombKeys = {
+            "KeyQ" : 0,
+            "Space" : 1,
+            "KeyR" : 2,
+            "KeyU" : 3,
+        } 
+
         setInterval(this.update.bind(this), 20);
         document.addEventListener('keydown', this._logKeyPress.bind(this));
     }
@@ -726,13 +733,18 @@ ge.Game = class Game {
         this._keyPressLog[ge.Directions.DOWN] = [false, false, false, false];
         this._keyPressLog[ge.Directions.LEFT] = [false, false, false, false];
         this._keyPressLog[ge.Directions.RIGHT] = [false, false, false, false];
+        this._keyPressLog["bomb"] = [false, false, false, false];
     }
 
     _logKeyPress(e) {
         if (this._keyDirectionPlayerMap.hasOwnProperty(e.code)) {
             let keyData = this._keyDirectionPlayerMap[e.code];
             this._keyPressLog[keyData.direction][keyData.player] = true;
-        }        
+        }
+
+        if (this._playerBombKeys.hasOwnProperty(e.code)) {
+            this._keyPressLog["bomb"][this._playerBombKeys[e.code]] = true;
+        }
     }
 
     update() {
@@ -753,6 +765,13 @@ ge.Game = class Game {
             }
         }
 
+        // Check for user input: bombs
+        for (let i = 0; i < this.MAX_PLAYERS; i++) {
+            if (this._keyPressLog["bomb"][i] == true) {
+                this.state.playerDropBomb(i, 500)
+            }
+        }
+        
         this._resetKeyPressLog();
         console.log(game.state.grid.asText());
     }
