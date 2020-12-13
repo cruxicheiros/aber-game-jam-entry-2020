@@ -29,12 +29,12 @@ ge.Queue = class {
                 let newCapacity = this.capacity * 2;
                 
                 // Copy the original array out in order so that the head can be set to 0
-                for (int i = this._head; i < this._head + this._size; i++) {
-                    orderedCopy.push(this._innerArray(this._getIndex(i)));
+                for (let i = this._head; i < this._head + this._size; i++) {
+                    orderedCopy.push(this._innerArray[this._getIndex(i)]);
                 }
 
                 // Add nulls to increase array size to the new capacity for indexing purposes
-                for (int i = this.capacity; i < newCapacity; i++) {
+                for (let i = this.capacity; i < newCapacity; i++) {
                     orderedCopy.push(null);
                 }
 
@@ -53,7 +53,7 @@ ge.Queue = class {
 
         // Enqueue at the tail.
         this._innerArray[this.getTail()] = item;
-        this.size += 1;
+        this._size += 1;
     }
 
     dequeue() {
@@ -62,9 +62,11 @@ ge.Queue = class {
         }
 
         // Dequeue from the head.
-        let item = this._innerArray[this._head];
-        this._innerArray[this._head] = null;
-        
+        let item = this._innerArray[this.getHead()];
+        this._innerArray[this.getHead()] = null;
+        this._head += 1;
+        this._size -=1;
+
         return item;
     }
 
@@ -77,7 +79,7 @@ ge.Queue = class {
     }
 
     getHead() {
-        return this._head;
+        return this._getIndex(this._head);
     }
 
     getTail() {
@@ -93,6 +95,36 @@ ge.Queue = class {
         // that will result in it sometimes giving a negative answer.
         // Thanks to https://stackoverflow.com/a/54427125.
         return (circularIndex % this.capacity + this.capacity) % this.capacity;
+    }
+};
+
+ge.Set = class {  // Basic set based on an Object. Does not handle collisions - hash function must result in no collisions.
+    constructor() {
+        this.data = {}
+    }
+
+    add(item) {
+        if (typeof item.hash != 'function') {
+            throw typeof item + ' must define a hash function to be added to a set.';
+        }
+
+        this.data[item.hash()] = true;
+    }
+
+    remove(item) {
+        if (typeof item.hash != 'function') {
+            throw typeof item + ' must define a hash function to be removed from a set.';
+        }
+
+        this.data[item.hash()] = undefined;
+    }
+
+    contains(item) {
+        if (typeof item.hash != 'function') {
+            throw typeof item + ' must define a hash function to be found in a set.'
+        }
+
+        return this.data.hasOwnProperty(item.hash());
     }
 }
 
@@ -120,6 +152,10 @@ ge.Player = class extends ge.Entity {
 
     die() {
         this.dead = true;
+    }
+
+    hash() {
+        return this.id;
     }
 };
 
@@ -155,6 +191,10 @@ ge.Point = class {
 
     right() {
         return new ge.Point(this.x + 1, this.y);
+    }
+
+    hash() {
+        return this.x.toString(10) + this.y.toString(10);
     }
 };
 
@@ -300,8 +340,36 @@ ge.Grid = class {
         return possible;
     }
 
-    checkTraversable(pointA, pointB) {
+    isTraversable(pointA, pointB) {  // Implements breadth-first search.
         let traversable = false;
+        let queue = new ge.Queue(this.size * this.size);
+        let discovered = new ge.Set();
+        
+        discovered.add(pointA);
+        queue.enqueue(pointA);
+
+        while (!queue.isEmpty()) {
+            let currentNode = queue.dequeue()
+
+            if (currentNode.x === pointB.x && currentNode.y === pointB.y) {
+                return true;
+            }
+
+            let adjacent = [currentNode.above(), currentNode.below(), currentNode.left(), currentNode.right()];
+
+            for (let i = 0; i < adjacent.length; i++) {
+                let point = adjacent[i];
+                let tile = this.getTileAtPos(point);
+                let clearPath = tile.isEmpty() || tile.occupant.type !== ge.EntityTypes.WALL;
+
+                if (clearPath && !discovered.contains(point)) {
+                    discovered.add(point);
+                    queue.enqueue(point);
+                }
+            }
+        }
+        
+        return false;
     }
 
     _constructContents() {
@@ -399,6 +467,33 @@ ge.GameGridState = class {
         currentTile.clear();
         nextTile.fill(player);
         player.position = newPosition;
+    }
+
+    movePlayerInDirection(playerId, direction) { 
+        let player = this.getPlayerById(playerId);
+
+        if (player == null) {
+            throw "Can't move player with id " + playerId + " because that player doesn't exist.";
+        }
+
+        switch (direction) {
+            case ge.Directions.UP:
+              this.movePlayer(playerId, player.position.above());
+              break;
+            case ge.Directions.DOWN:
+              this.movePlayer(playerId, player.position.below());
+              break;
+            case ge.Directions.LEFT:
+              this.movePlayer(playerId, player.position.left());
+              break;
+            case ge.Directions.RIGHT:
+              this.movePlayer(playerId, player.position.right());
+              break;
+            default:
+              throw "Player could not me moved: " + direction + " is not a valid direction."
+        }
+
+        player.direction = direction;
     }
 
     killPlayer(playerId) {
@@ -524,5 +619,141 @@ ge.GameGridState = class {
           
             console.log(this.grid.asText());
         }
-   }
+    }
+
+    killTrappedPlayers() {
+        let livePlayers = this.players.filter(p => !p.dead);
+        let pairings = [];
+        
+        let unpaired_count = livePlayers.length;
+        
+        while (unpaired_count > 1) {
+            let player = livePlayers[unpaired_count - 1];
+            
+            unpaired_count -= 1;            
+ 
+            for (let i = 0; i < unpaired_count; i++) {
+                pairings.push([player, livePlayers[i]])
+            }
+        }
+
+        let reachablePlayers = new ge.Set();
+
+        for (let i = 0; i < pairings.length; i++) {
+            let pairing = pairings[i];
+
+            if (reachablePlayers.contains(pairing[0]) && reachablePlayers.contains(pairing[1])) {
+                continue;  // No point traversing if we know both of them are reachable
+            }
+
+            if (this.grid.isTraversable(pairing[0].position, pairing[1].position)) {
+                reachablePlayers.add(pairing[0]);
+                reachablePlayers.add(pairing[1]);
+            }
+        }
+
+        for (let i = 0; i < livePlayers.length; i++) {
+            if (!reachablePlayers.contains(livePlayers[i])) {
+                let deadPlayer = livePlayers[i];
+                deadPlayer.die(); // :'(
+                this.grid.getTileAtPos(deadPlayer.position).clear();
+            }
+        }
+    }
+
+    getWinners() {
+        let livePlayers = this.players.filter(p => !p.dead);
+        
+        if (livePlayers.length < 2) {
+            return livePlayers;
+        }
+
+        return null;
+    }
 };
+
+ge.Game = class Game {
+    constructor(gridSize, playerCount) {
+        this.MAX_PLAYERS = 4;  // Modify at your own risk - you may need to define more keys, etc.
+        this.MIN_GRID = 4;
+
+        if (gridSize < this.MIN_GRID) {
+            throw "Minimum grid size is " + this.MIN_GRID;
+        }
+
+        if (playerCount > 4 || playerCount < 2) {
+            throw "Player count must be within 2 and " + this.MAX_PLAYERS;
+        }
+
+        let grid = new ge.Grid(gridSize);
+        let gridCorners = [new ge.Point(1, 1), new ge.Point(1, gridSize - 2), new ge.Point(gridSize - 2, gridSize - 2), new ge.Point(gridSize - 2, 1)];
+        let players = [];
+
+        for (let i = 0; i < playerCount; i++) {
+            players.push(new ge.Player(i, gridCorners[i]));
+        }
+
+        this.state = new ge.GameGridState(grid, players);
+
+        this._keyPressLog = {};  // false: unpressed. true: pressed
+        this._resetKeyPressLog();
+
+        this._keyDirectionPlayerMap = {
+            "KeyW": {direction: ge.Directions.UP, player: 0},
+            "KeyS": {direction: ge.Directions.DOWN, player: 0},
+            "KeyA": {direction: ge.Directions.LEFT, player: 0},
+            "KeyD": {direction: ge.Directions.RIGHT, player: 0},
+            "ArrowUp": {direction: ge.Directions.UP, player: 1},
+            "ArrowDown": {direction: ge.Directions.DOWN, player: 1},
+            "ArrowLeft": {direction: ge.Directions.LEFT, player: 1},
+            "ArrowRight": {direction: ge.Directions.RIGHT, player: 1},
+            "KeyT": {direction: ge.Directions.UP, player: 2},
+            "KeyG": {direction: ge.Directions.DOWN, player: 2},
+            "KeyF": {direction: ge.Directions.LEFT, player: 2},
+            "KeyH": {direction: ge.Directions.RIGHT, player: 2},
+            "KeyI": {direction: ge.Directions.UP, player: 3},
+            "KeyK": {direction: ge.Directions.DOWN, player: 3},
+            "KeyJ": {direction: ge.Directions.LEFT, player: 3},
+            "KeyL": {direction: ge.Directions.RIGHT, player: 3},
+        }
+
+        setInterval(this.update.bind(this), 20);
+        document.addEventListener('keydown', this._logKeyPress.bind(this));
+    }
+
+    _resetKeyPressLog() {
+        this._keyPressLog[ge.Directions.UP] = [false, false, false, false];
+        this._keyPressLog[ge.Directions.DOWN] = [false, false, false, false];
+        this._keyPressLog[ge.Directions.LEFT] = [false, false, false, false];
+        this._keyPressLog[ge.Directions.RIGHT] = [false, false, false, false];
+    }
+
+    _logKeyPress(e) {
+        if (this._keyDirectionPlayerMap.hasOwnProperty(e.code)) {
+            let keyData = this._keyDirectionPlayerMap[e.code];
+            this._keyPressLog[keyData.direction][keyData.player] = true;
+        }        
+    }
+
+    update() {
+        // Check for user input: movement
+        let directions = [ge.Directions.UP, ge.Directions.DOWN, ge.Directions.LEFT, ge.Directions.RIGHT];
+
+        for (let i = 0; i < directions.length; i++) {
+            let keyDirection = directions[i];            
+
+            for (let j = 0; j < this.MAX_PLAYERS; j++) {  // Iterate over the max instead of the actual to avoid affecting gameplay speeds.
+                let keyPlayerId = j;
+
+                if (this._keyPressLog[keyDirection][keyPlayerId] === true) {
+                    if (this.state.playerCanMove(keyPlayerId, keyDirection)) {
+                        this.state.movePlayerInDirection(keyPlayerId, keyDirection);
+                    }
+                }
+            }
+        }
+
+        this._resetKeyPressLog();
+        console.log(game.state.grid.asText());
+    }
+}
