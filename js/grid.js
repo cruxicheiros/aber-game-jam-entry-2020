@@ -399,7 +399,7 @@ ge.GameGridState = class {
       	let explosionDirections = directions.filter(d => d != this._reverseDirection(direction));
       	
       	for (let i = 0; i < explosionDirections.length; i++) {
-						let garbagePosition;
+			let garbagePosition;
             let garbageDirection = explosionDirections[i];
           
             switch (garbageDirection) {
@@ -415,7 +415,7 @@ ge.GameGridState = class {
                 case ge.Directions.RIGHT:
                     garbagePosition = position.right();
                     break;
-             }
+            }
 
             let garbageTile = this.grid.getTileAtPos(garbagePosition);
 
@@ -424,7 +424,7 @@ ge.GameGridState = class {
             } catch (e) {
                 console.log("Encountered error while creating explosion garbage but ignored it: " + e);
 
-                if (garbageTile.occupant.type == ge.EntityTypes.PLAYER) {
+                if (!garbageTile.isEmpty() && garbageTile.occupant.type == ge.EntityTypes.PLAYER) {
                     let hitPlayer = garbageTile.occupant;
 
                     console.log("Explosion hit a player: " + hitPlayer.id);
