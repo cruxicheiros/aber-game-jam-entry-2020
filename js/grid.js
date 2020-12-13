@@ -772,7 +772,12 @@ ge.Game = class Game {
             }
         }
         
+        this.state.killTrappedPlayers();
         this._resetKeyPressLog();
         console.log(game.state.grid.asText());
+
+        if (this.state.getWinners()) {
+            console.log("End");
+        }
     }
 }
