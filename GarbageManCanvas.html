@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="grid.js"></script>
+    <link rel="stylesheet" type="text/css" href="Garbage.css"/>
+    <meta charset="UTF-8">
+    <title>Garbage Man- A Canvas Game</title>
+</head>
+<body>
+<h1> Garbage Man </h1>
+<div class="info">
+    <p>Welcome to Garbage Man, a bomberman style game where you are a trash can who throws burning garbage at other trash cans!</p>
+    <p>This game was made in 48 hours for Aber Comp Soc's 2020 game jam by Evelyn Hugtenburg and Clark Seanor. The theme was "2020 Simulator".</p>
+    <p><strong>Player 1:</strong> <strong>WASD</strong> to move, <strong>Q</strong> to drop a garbage bomb. <strong>Player 2:</strong> <strong>Arrow</strong> keys to move, <strong>space</strong> to drop a garbage bomb. Click inside the game box to allow it to capture your keyboard!</p>
+    <p>Your goal is to cover the other player in garbage while avoiding completely isolating yourself from them with a wall of burning garbage.</p>
+</div>
+
+<canvas id="gameCanvas" width="500" height="500" alt="Bomberman Style Canvas Game"></canvas>
+<br>
+<script>
+    let canvas = document.getElementById("gameCanvas");//canvas object
+    let ctx = canvas.getContext("2d"); //drawing tool, context
+    let geGame = new ge.Game(10, 2);
+    let gePlayer1 = geGame.state.getPlayerById(0);
+    let gePlayer2 = geGame.state.getPlayerById(1);
+    let player1Pos = new ge.Point([gePlayer1.position.x, gePlayer1.position.y]);
+    let player2Pos = new ge.Point([gePlayer2.position.x, gePlayer2.position.y]);
+    let players = [
+        {
+            xPos: 0,
+            yPos: 0,
+            body: {
+                xCoord: 60,
+                yCoord: 60,
+                width: 30,
+                height: 40,
+                color: "#A9A9A9"
+            },
+            lid: {
+                xCoord: 55,
+                yCoord: 55,
+                width: 40,
+                height: 5,
+                color: "#696969"
+            },
+            eyes: {
+                width: 6,
+                height: 10,
+                color: "#FF0000",
+                staticEye: {//refers to eye that stays in the center when visible
+                    xCoord: 72,
+                    yCoord: 70
+                },
+                movingEye: {//refers to eye that moves depending on direction facing
+                    xCoord: 82,
+                    yCoord: 70
+                }
+            }
+        },
+        {
+            xPos: 0,
+            yPos: 0,
+            body: {
+                xCoord: 60,
+                yCoord: 410,
+                width: 30,
+                height: 40,
+                color: "#C0C0C0"
+            },
+            lid: {
+                xCoord: 55,
+                yCoord: 405,
+                width: 40,
+                height: 5,
+                color: "#708090"
+            },
+            eyes: {
+                width: 6,
+                height: 10,
+                color: "#00FF00",
+                staticEye: {//refers to eye that stays in the center when visible
+                    xCoord: 72,
+                    yCoord: 420
+                },
+                movingEye: {//refers to eye that moves depending on direction facing
+                    xCoord: 82,
+                    yCoord: 420
+                }
+            }
+        }
+    ];
+
+    let wall= {
+        height: 50,
+        width: 50,
+        colour: "#B22222"
+    };
+
+    let bomb= {
+        height: 40,
+        width: 40,
+        colour: "#4B0082"
+    };
+
+    function drawRectangle(xCoord, yCoord, width, height, color) {
+        ctx.beginPath();
+        ctx.rect(xCoord, yCoord, width, height);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    function drawPlayer(playerId) {
+        let eyePlacement;
+            drawRectangle(players[playerId].body.xCoord + (players[playerId].xPos),
+                players[playerId].body.yCoord + (players[playerId].yPos),
+                players[playerId].body.width,
+                players[playerId].body.height,
+                players[playerId].body.color
+            );
+            drawRectangle(players[playerId].lid.xCoord + (players[playerId].xPos),
+                players[playerId].lid.yCoord + (players[playerId].yPos),
+                players[playerId].lid.width,
+                players[playerId].lid.height,
+                players[playerId].lid.color
+            );
+            if (playerId === 0) {
+                if (!(gePlayer1.direction === 'up')) {
+
+                    if (gePlayer1.direction === 'left') {
+                        eyePlacement = -20;
+                    } else {
+                        eyePlacement = 0;
+                    }
+                    drawEyes(playerId,eyePlacement);
+                }
+            } else if (playerId === 1) {
+                if (!(gePlayer2.direction === 'up')) {
+                    if (gePlayer2.direction === 'left') {
+                        eyePlacement = -20;
+                    } else {
+                        eyePlacement = 0;
+                    }
+                    drawEyes(playerId,eyePlacement);
+                }
+            }
+    }
+    function drawEyes(playerId,eyePlacement){
+        drawRectangle(players[playerId].eyes.staticEye.xCoord + (players[playerId].xPos),
+            players[playerId].eyes.staticEye.yCoord + (players[playerId].yPos),
+            players[playerId].eyes.width,
+            players[playerId].eyes.height,
+            players[playerId].eyes.color
+        );
+        drawRectangle(players[playerId].eyes.movingEye.xCoord + eyePlacement + (players[playerId].xPos),
+            players[playerId].eyes.movingEye.yCoord + (players[playerId].yPos),
+            players[playerId].eyes.width,
+            players[playerId].eyes.height,
+            players[playerId].eyes.color
+        );
+    }
+
+
+    function handlePlayer1(){
+        if ((player1Pos!=gePlayer1.position)){
+            player1Pos = gePlayer1.position;
+        }
+        if (50 * player1Pos.x + 10 > players[0].body.xCoord + players[0].xPos){
+            players[0].xPos += 10;
+        }
+        else if (50 * player1Pos.x + 10 < players[0].body.xCoord + players[0].xPos){
+            players[0].xPos -= 10;
+        }
+        if (50 * player1Pos.y + 10 > players[0].body.yCoord + players[0].yPos){
+            players[0].yPos += 10;
+        }
+        else if (50 * player1Pos.y + 10 < players[0].body.yCoord + players[0].yPos){
+            players[0].yPos -= 10;
+        }
+
+    }
+    function handlePlayer2(){
+        if (!(player2Pos===gePlayer2.position)){
+            player2Pos=gePlayer2.position
+        }
+        if (50*player2Pos.x+10>players[1].body.xCoord+players[1].xPos){
+            players[1].xPos+=10;
+        }
+        else if (50*player2Pos.x+10<players[1].body.xCoord+players[1].xPos){
+            players[1].xPos-=10;
+        }
+        if (50*player2Pos.y+10>players[1].body.yCoord+players[1].yPos){
+            players[1].yPos+=10;
+        }
+        else if (50*player2Pos.y+10<players[1].body.yCoord+players[1].yPos){
+            players[1].yPos-=10;
+        }
+    }
+
+    function drawWallsAndBombs() {
+        let gridContents = geGame.state.grid.contents;
+
+        for (let y = 0; y < geGame.state.grid.size; y++) {
+            for (let x = 0; x < geGame.state.grid.size; x++) {
+                let tile = gridContents[y][x];
+
+                if (tile.isEmpty()) {
+                    continue;
+                }
+
+                if (tile.occupant.type === ge.EntityTypes.WALL) {
+                    drawRectangle(50 * x, 50 * y,wall.width,wall.height,wall.colour);
+                    continue;
+                }
+
+                if (tile.occupant.type === ge.EntityTypes.BOMB) {
+                    drawRectangle(50 * x+10, 50 * y+10,bomb.width,bomb.height,bomb.colour);
+                }
+            }
+        }
+    }
+
+
+    function draw() {
+        ctx.clearRect(0,0, canvas.width, canvas.height);
+        let winners = geGame.update();
+        drawWallsAndBombs();
+        if (!(gePlayer1.dead)){
+            drawPlayer(gePlayer1.id);
+        }
+        if (!(gePlayer2.dead)){
+            drawPlayer(gePlayer2.id);
+        }
+        handlePlayer1();
+        handlePlayer2();
+
+        if (winners !== null) {
+            let win_text;
+
+            if (winners.length === 0) {
+                win_text = "Nobody won!";
+            } else if (winners.length === 1) {
+                win_text = "Player " + (winners[0].id + 1) + " won!";
+            }
+
+            ctx.font = "30px Arial";
+            ctx.fillStyle = "black";
+            ctx.fillText(win_text, 100, 200);
+        }
+    }
+
+    gameInt = setInterval(draw, 100);
+</script>
+
+</body>
+</html>
