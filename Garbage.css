@@ -1,0 +1,32 @@
+/* Written By Evelyn Hugtenburg */
+* {padding: 0; margin:0}
+body {		color:			black;
+    margin-left:	10%;
+}
+
+h1, h2 {		font-family: 	Impact, Charcoal, sans-serif;
+    font-style: 	Normal;
+    color:			#FF4500;
+}
+
+
+p {
+    font-family: Arial, Helvetica, sans-serif;
+    color: Black;
+    font-style: Normal;
+    margin-bottom: 0.5em;
+}
+
+canvas {
+    background:		#DCDCDC;
+    display: 		block;
+    border: 		3px solid #4B0082;
+    margin-left: 	0%;
+}
+
+.info {
+    border: 3px solid black;
+    padding: 1em;
+    margin: 1em 0;
+    width: 600px;
+}
